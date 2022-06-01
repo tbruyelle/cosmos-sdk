@@ -1,8 +1,12 @@
-# Cosmos SDK Dependency Injection `container` Module
+# Cosmos SDK Dependency Injection `depinject` Module
 
 ## Overview
 
-TODO
+This go module provides dependency injection and resolution for SDK modules.  Configuration is provided by a single
+[YAML file](https://github.com/cosmos/cosmos-sdk/blob/main/simapp/app.yaml) as specified by 
+[proto3](https://github.com/cosmos/cosmos-sdk/blob/main/proto/cosmos/auth/module/v1/module.proto) message types.  Type
+bindings are resolved reflecting over [provider functions](https://github.com/cosmos/cosmos-sdk/blob/33c4bac3d3acbb820b97173882fa9feddacb2f5a/runtime/module.go#L106-L131),
+identifying function parameters as inputs (dependencies) and return values as outputs.
 
 ## Usage
 
