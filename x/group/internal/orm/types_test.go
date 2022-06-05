@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	errorsmod "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/store/prefix"
@@ -32,7 +33,7 @@ func TestTypeSafeRowGetter(t *testing.T) {
 		srcRowID     RowID
 		srcModelType reflect.Type
 		expObj       interface{}
-		expErr       *sdkerrors.Error
+		expErr       *errorsmod.Error
 	}{
 		"happy path": {
 			srcRowID:     EncodeSequence(1),

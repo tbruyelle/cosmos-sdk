@@ -3,8 +3,9 @@ package keeper
 import (
 	"context"
 
+	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/errors"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/upgrade/types"
 )
 
@@ -61,7 +62,7 @@ func (k Keeper) ModuleVersions(c context.Context, req *types.QueryModuleVersions
 			return &types.QueryModuleVersionsResponse{ModuleVersions: res}, nil
 		}
 		// module requested, but not found
-		return nil, errors.Wrapf(errors.ErrNotFound, "x/upgrade: QueryModuleVersions module %s not found", req.ModuleName)
+		return nil, errorsmod.Wrapf(sdkerrors.ErrNotFound, "x/upgrade: QueryModuleVersions module %s not found", req.ModuleName)
 	}
 
 	// if no module requested return all module versions from state

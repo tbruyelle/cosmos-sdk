@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	errorsmod "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
@@ -55,7 +56,7 @@ func TestCreate(t *testing.T) {
 	specs := map[string]struct {
 		rowID  RowID
 		src    codec.ProtoMarshaler
-		expErr *sdkerrors.Error
+		expErr *errorsmod.Error
 	}{
 		"empty rowID": {
 			rowID: []byte{},
@@ -123,7 +124,7 @@ func TestCreate(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	specs := map[string]struct {
 		src    codec.ProtoMarshaler
-		expErr *sdkerrors.Error
+		expErr *errorsmod.Error
 	}{
 		"happy path": {
 			src: &testdata.TableModel{
@@ -185,7 +186,7 @@ func TestUpdate(t *testing.T) {
 func TestDelete(t *testing.T) {
 	specs := map[string]struct {
 		rowId  []byte
-		expErr *sdkerrors.Error
+		expErr *errorsmod.Error
 	}{
 		"happy path": {
 			rowId: EncodeSequence(1),

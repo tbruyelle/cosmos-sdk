@@ -19,6 +19,7 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 
+	errorsmod "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
@@ -724,7 +725,7 @@ func (msg msgCounter) ValidateBasic() error {
 	if msg.Counter >= 0 {
 		return nil
 	}
-	return sdkerrors.Wrap(sdkerrors.ErrInvalidSequence, "counter should be a non-negative integer")
+	return errorsmod.Wrap(sdkerrors.ErrInvalidSequence, "counter should be a non-negative integer")
 }
 
 func newTxCounter(counter int64, msgCounters ...int64) *txTest {
@@ -769,7 +770,7 @@ func (msg msgCounter2) ValidateBasic() error {
 	if msg.Counter >= 0 {
 		return nil
 	}
-	return sdkerrors.Wrap(sdkerrors.ErrInvalidSequence, "counter should be a non-negative integer")
+	return errorsmod.Wrap(sdkerrors.ErrInvalidSequence, "counter should be a non-negative integer")
 }
 
 // A msg that sets a key/value pair.
@@ -787,10 +788,10 @@ func (msg msgKeyValue) GetSignBytes() []byte         { return nil }
 func (msg msgKeyValue) GetSigners() []sdk.AccAddress { return nil }
 func (msg msgKeyValue) ValidateBasic() error {
 	if msg.Key == nil {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "key cannot be nil")
+		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "key cannot be nil")
 	}
 	if msg.Value == nil {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "value cannot be nil")
+		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "value cannot be nil")
 	}
 	return nil
 }
@@ -800,7 +801,7 @@ func testTxDecoder(cdc *codec.LegacyAmino) sdk.TxDecoder {
 	return func(txBytes []byte) (sdk.Tx, error) {
 		var tx txTest
 		if len(txBytes) == 0 {
-			return nil, sdkerrors.Wrap(sdkerrors.ErrTxDecode, "tx bytes are empty")
+			return nil, errorsmod.Wrap(sdkerrors.ErrTxDecode, "tx bytes are empty")
 		}
 
 		err := cdc.Unmarshal(txBytes, &tx)
@@ -818,7 +819,7 @@ func anteHandlerTxTest(t *testing.T, capKey storetypes.StoreKey, storeKey []byte
 		txTest := tx.(txTest)
 
 		if txTest.FailOnAnte {
-			return ctx, sdkerrors.Wrap(sdkerrors.ErrUnauthorized, "ante handler failure")
+			return ctx, errorsmod.Wrap(sdkerrors.ErrUnauthorized, "ante handler failure")
 		}
 
 		_, err := incrementingCounter(t, store, storeKey, txTest.Counter)
@@ -854,7 +855,7 @@ func handlerMsgCounter(t *testing.T, capKey storetypes.StoreKey, deliverKey []by
 		switch m := msg.(type) {
 		case *msgCounter:
 			if m.FailOnHandler {
-				return nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "message handler failure")
+				return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "message handler failure")
 			}
 
 			msgCount = m.Counter
@@ -1190,7 +1191,7 @@ func TestRunInvalidTransaction(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, result)
 
-		space, code, _ := sdkerrors.ABCIInfo(err, false)
+		space, code, _ := errorsmod.ABCIInfo(err, false)
 		require.EqualValues(t, sdkerrors.ErrInvalidRequest.Codespace(), space, err)
 		require.EqualValues(t, sdkerrors.ErrInvalidRequest.ABCICode(), code, err)
 	}
@@ -1218,7 +1219,7 @@ func TestRunInvalidTransaction(t *testing.T) {
 			if testCase.fail {
 				require.Error(t, err)
 
-				space, code, _ := sdkerrors.ABCIInfo(err, false)
+				space, code, _ := errorsmod.ABCIInfo(err, false)
 				require.EqualValues(t, sdkerrors.ErrInvalidSequence.Codespace(), space, err)
 				require.EqualValues(t, sdkerrors.ErrInvalidSequence.ABCICode(), code, err)
 			} else {
@@ -1234,7 +1235,7 @@ func TestRunInvalidTransaction(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, result)
 
-		space, code, _ := sdkerrors.ABCIInfo(err, false)
+		space, code, _ := errorsmod.ABCIInfo(err, false)
 		require.EqualValues(t, sdkerrors.ErrUnknownRequest.Codespace(), space, err)
 		require.EqualValues(t, sdkerrors.ErrUnknownRequest.ABCICode(), code, err)
 
@@ -1243,7 +1244,7 @@ func TestRunInvalidTransaction(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, result)
 
-		space, code, _ = sdkerrors.ABCIInfo(err, false)
+		space, code, _ = errorsmod.ABCIInfo(err, false)
 		require.EqualValues(t, sdkerrors.ErrUnknownRequest.Codespace(), space, err)
 		require.EqualValues(t, sdkerrors.ErrUnknownRequest.ABCICode(), code, err)
 	}
@@ -1282,7 +1283,7 @@ func TestTxGasLimits(t *testing.T) {
 				if r := recover(); r != nil {
 					switch rType := r.(type) {
 					case sdk.ErrorOutOfGas:
-						err = sdkerrors.Wrapf(sdkerrors.ErrOutOfGas, "out of gas in location: %v", rType.Descriptor)
+						err = errorsmod.Wrapf(sdkerrors.ErrOutOfGas, "out of gas in location: %v", rType.Descriptor)
 					default:
 						panic(r)
 					}
@@ -1348,7 +1349,7 @@ func TestTxGasLimits(t *testing.T) {
 			require.Error(t, err)
 			require.Nil(t, result)
 
-			space, code, _ := sdkerrors.ABCIInfo(err, false)
+			space, code, _ := errorsmod.ABCIInfo(err, false)
 			require.EqualValues(t, sdkerrors.ErrOutOfGas.Codespace(), space, err)
 			require.EqualValues(t, sdkerrors.ErrOutOfGas.ABCICode(), code, err)
 		}
@@ -1366,7 +1367,7 @@ func TestMaxBlockGasLimits(t *testing.T) {
 				if r := recover(); r != nil {
 					switch rType := r.(type) {
 					case sdk.ErrorOutOfGas:
-						err = sdkerrors.Wrapf(sdkerrors.ErrOutOfGas, "out of gas in location: %v", rType.Descriptor)
+						err = errorsmod.Wrapf(sdkerrors.ErrOutOfGas, "out of gas in location: %v", rType.Descriptor)
 					default:
 						panic(r)
 					}
@@ -1435,7 +1436,7 @@ func TestMaxBlockGasLimits(t *testing.T) {
 				require.Error(t, err, fmt.Sprintf("tc #%d; result: %v, err: %s", i, result, err))
 				require.Nil(t, result, fmt.Sprintf("tc #%d; result: %v, err: %s", i, result, err))
 
-				space, code, _ := sdkerrors.ABCIInfo(err, false)
+				space, code, _ := errorsmod.ABCIInfo(err, false)
 				require.EqualValues(t, sdkerrors.ErrOutOfGas.Codespace(), space, err)
 				require.EqualValues(t, sdkerrors.ErrOutOfGas.ABCICode(), code, err)
 				require.True(t, ctx.BlockGasMeter().IsOutOfGas())
@@ -1458,11 +1459,11 @@ func TestMaxBlockGasLimits(t *testing.T) {
 // Test custom panic handling within app.DeliverTx method
 func TestCustomRunTxPanicHandler(t *testing.T) {
 	const customPanicMsg = "test panic"
-	anteErr := sdkerrors.Register("fakeModule", 100500, "fakeError")
+	anteErr := errorsmod.Register("fakeModule", 100500, "fakeError")
 
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx sdk.Context, tx sdk.Tx, simulate bool) (newCtx sdk.Context, err error) {
-			panic(sdkerrors.Wrap(anteErr, "anteHandler"))
+			panic(errorsmod.Wrap(anteErr, "anteHandler"))
 		})
 	}
 	routerOpt := func(bapp *BaseApp) {
@@ -1585,7 +1586,7 @@ func TestGasConsumptionBadTx(t *testing.T) {
 					switch rType := r.(type) {
 					case sdk.ErrorOutOfGas:
 						log := fmt.Sprintf("out of gas in location: %v", rType.Descriptor)
-						err = sdkerrors.Wrap(sdkerrors.ErrOutOfGas, log)
+						err = errorsmod.Wrap(sdkerrors.ErrOutOfGas, log)
 					default:
 						panic(r)
 					}
@@ -1595,7 +1596,7 @@ func TestGasConsumptionBadTx(t *testing.T) {
 			txTest := tx.(txTest)
 			newCtx.GasMeter().ConsumeGas(uint64(txTest.Counter), "counter-ante")
 			if txTest.FailOnAnte {
-				return newCtx, sdkerrors.Wrap(sdkerrors.ErrUnauthorized, "ante handler failure")
+				return newCtx, errorsmod.Wrap(sdkerrors.ErrUnauthorized, "ante handler failure")
 			}
 
 			return
