@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	errorsmod "cosmossdk.io/errors"
 )
 
 var (
@@ -21,7 +21,7 @@ var (
 // ValidateClassID returns whether the class id is valid
 func ValidateClassID(id string) error {
 	if !reClassID.MatchString(id) {
-		return sdkerrors.Wrapf(ErrInvalidClassID, "invalid class id: %s", id)
+		return errorsmod.Wrapf(ErrInvalidClassID, "invalid class id: %s", id)
 	}
 	return nil
 }
@@ -29,7 +29,7 @@ func ValidateClassID(id string) error {
 // ValidateNFTID returns whether the nft id is valid
 func ValidateNFTID(id string) error {
 	if !reNFTID.MatchString(id) {
-		return sdkerrors.Wrapf(ErrInvalidID, "invalid nft id: %s", id)
+		return errorsmod.Wrapf(ErrInvalidID, "invalid nft id: %s", id)
 	}
 	return nil
 }
