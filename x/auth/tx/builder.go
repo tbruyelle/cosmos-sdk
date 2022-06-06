@@ -122,7 +122,7 @@ func (w *wrapper) GetPubKeys() ([]cryptotypes.PubKey, error) {
 		if ok {
 			pks[i] = pk
 		} else {
-			return nil, sdkerrors.Wrapf(sdkerrors.ErrLogic, "Expecting PubKey, got: %T", pkAny)
+			return nil, errorsmod.Wrapf(sdkerrors.ErrLogic, "Expecting PubKey, got: %T", pkAny)
 		}
 	}
 

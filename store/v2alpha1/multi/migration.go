@@ -1,6 +1,7 @@
 package multi
 
 import (
+	errorsmod "cosmossdk.io/errors"
 	dbm "github.com/cosmos/cosmos-sdk/db"
 	"github.com/cosmos/cosmos-sdk/store/iavl"
 	"github.com/cosmos/cosmos-sdk/store/mem"
@@ -29,7 +30,7 @@ func MigrateFromV1(rootMultiStore *v1Store.Store, store2db dbm.DBConnection, sto
 		case *transient.Store, *mem.Store:
 			continue
 		default:
-			return nil, sdkerrors.Wrapf(sdkerrors.ErrLogic, "don't know how to migrate store %q of type %T", keyName, store)
+			return nil, errorsmod.Wrapf(sdkerrors.ErrLogic, "don't know how to migrate store %q of type %T", keyName, store)
 		}
 	}
 

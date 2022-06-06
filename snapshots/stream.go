@@ -5,10 +5,9 @@ import (
 	"compress/zlib"
 	"io"
 
+	errorsmod "cosmossdk.io/errors"
 	protoio "github.com/gogo/protobuf/io"
 	"github.com/gogo/protobuf/proto"
-
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 const (
@@ -34,7 +33,7 @@ func NewStreamWriter(ch chan<- io.ReadCloser) *StreamWriter {
 	bufWriter := bufio.NewWriterSize(chunkWriter, snapshotBufferSize)
 	zWriter, err := zlib.NewWriterLevel(bufWriter, snapshotCompressionLevel)
 	if err != nil {
-		chunkWriter.CloseWithError(sdkerrors.Wrap(err, "zlib failure"))
+		chunkWriter.CloseWithError(errorsmod.Wrap(err, "zlib failure"))
 		return nil
 	}
 	protoWriter := protoio.NewDelimitedWriter(zWriter)
@@ -86,7 +85,7 @@ func NewStreamReader(chunks <-chan io.ReadCloser) (*StreamReader, error) {
 	chunkReader := NewChunkReader(chunks)
 	zReader, err := zlib.NewReader(chunkReader)
 	if err != nil {
-		return nil, sdkerrors.Wrap(err, "zlib failure")
+		return nil, errorsmod.Wrap(err, "zlib failure")
 	}
 	protoReader := protoio.NewDelimitedReader(zReader, snapshotMaxItemSize)
 	return &StreamReader{

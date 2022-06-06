@@ -5,6 +5,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 
+	errorsmod "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -45,12 +46,12 @@ func (m MsgSubmitEvidence) Type() string { return TypeMsgSubmitEvidence }
 // ValidateBasic performs basic (non-state-dependant) validation on a MsgSubmitEvidence.
 func (m MsgSubmitEvidence) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(m.Submitter); err != nil {
-		return sdkerrors.ErrInvalidAddress.Wrapf("invalid submitter address: %s", err)
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid submitter address: %s", err)
 	}
 
 	evi := m.GetEvidence()
 	if evi == nil {
-		return sdkerrors.Wrap(ErrInvalidEvidence, "missing evidence")
+		return errorsmod.Wrap(ErrInvalidEvidence, "missing evidence")
 	}
 	if err := evi.ValidateBasic(); err != nil {
 		return err

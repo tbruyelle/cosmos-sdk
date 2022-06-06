@@ -8,6 +8,7 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
+	errorsmod "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
@@ -169,7 +170,7 @@ func TestTxValidateBasic(t *testing.T) {
 
 	err := tx.ValidateBasic()
 	require.Error(t, err)
-	_, code, _ := sdkerrors.ABCIInfo(err, false)
+	_, code, _ := errorsmod.ABCIInfo(err, false)
 	require.Equal(t, sdkerrors.ErrInsufficientFee.ABCICode(), code)
 
 	// require to fail validation when no signatures exist
@@ -178,7 +179,7 @@ func TestTxValidateBasic(t *testing.T) {
 
 	err = tx.ValidateBasic()
 	require.Error(t, err)
-	_, code, _ = sdkerrors.ABCIInfo(err, false)
+	_, code, _ = errorsmod.ABCIInfo(err, false)
 	require.Equal(t, sdkerrors.ErrNoSignatures.ABCICode(), code)
 
 	// require to fail validation when signatures do not match expected signers
@@ -187,7 +188,7 @@ func TestTxValidateBasic(t *testing.T) {
 
 	err = tx.ValidateBasic()
 	require.Error(t, err)
-	_, code, _ = sdkerrors.ABCIInfo(err, false)
+	_, code, _ = errorsmod.ABCIInfo(err, false)
 	require.Equal(t, sdkerrors.ErrUnauthorized.ABCICode(), code)
 
 	// require to fail with invalid gas supplied
@@ -197,7 +198,7 @@ func TestTxValidateBasic(t *testing.T) {
 
 	err = tx.ValidateBasic()
 	require.Error(t, err)
-	_, code, _ = sdkerrors.ABCIInfo(err, false)
+	_, code, _ = errorsmod.ABCIInfo(err, false)
 	require.Equal(t, sdkerrors.ErrInvalidRequest.ABCICode(), code)
 
 	// require to pass when above criteria are matched

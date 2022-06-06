@@ -6,11 +6,11 @@ import (
 
 	"github.com/tendermint/tendermint/libs/log"
 
+	errorsmod "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/group"
 	"github.com/cosmos/cosmos-sdk/x/group/errors"
 	"github.com/cosmos/cosmos-sdk/x/group/internal/orm"
@@ -361,12 +361,12 @@ func (k Keeper) TallyProposalsAtVPEnd(ctx sdk.Context) error {
 	return k.iterateProposalsByVPEnd(ctx, ctx.BlockTime(), func(proposal group.Proposal) (bool, error) {
 		policyInfo, err := k.getGroupPolicyInfo(ctx, proposal.GroupPolicyAddress)
 		if err != nil {
-			return true, sdkerrors.Wrap(err, "group policy")
+			return true, errorsmod.Wrap(err, "group policy")
 		}
 
 		electorate, err := k.getGroupInfo(ctx, policyInfo.GroupId)
 		if err != nil {
-			return true, sdkerrors.Wrap(err, "group")
+			return true, errorsmod.Wrap(err, "group")
 		}
 
 		proposalID := proposal.Id
@@ -380,11 +380,11 @@ func (k Keeper) TallyProposalsAtVPEnd(ctx sdk.Context) error {
 		} else {
 			err = k.doTallyAndUpdate(ctx, &proposal, electorate, policyInfo)
 			if err != nil {
-				return true, sdkerrors.Wrap(err, "doTallyAndUpdate")
+				return true, errorsmod.Wrap(err, "doTallyAndUpdate")
 			}
 
 			if err := k.proposalTable.Update(ctx.KVStore(k.key), proposal.Id, &proposal); err != nil {
-				return true, sdkerrors.Wrap(err, "proposal update")
+				return true, errorsmod.Wrap(err, "proposal update")
 			}
 		}
 

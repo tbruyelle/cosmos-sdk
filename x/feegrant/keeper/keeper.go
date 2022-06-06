@@ -75,7 +75,7 @@ func (k Keeper) GrantAllowance(ctx sdk.Context, granter, grantee sdk.AccAddress,
 	if err != nil {
 		return err
 	} else if newExp != nil && newExp.Before(ctx.BlockTime()) {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "expiration is before current block time")
+		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "expiration is before current block time")
 	} else if oldExp == nil && newExp != nil {
 		// when old oldExp is nil there won't be any key added before to queue.
 		// add the new key to queue directly.

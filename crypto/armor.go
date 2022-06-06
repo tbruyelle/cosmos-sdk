@@ -10,6 +10,7 @@ import (
 	"github.com/tendermint/tendermint/crypto"
 	"golang.org/x/crypto/openpgp/armor" // nolint: staticcheck
 
+	errorsmod "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/codec/legacy"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/crypto/xsalsa20symmetric"
@@ -149,7 +150,7 @@ func encryptPrivKey(privKey cryptotypes.PrivKey, passphrase string) (saltBytes [
 	saltBytes = crypto.CRandBytes(16)
 	key, err := bcrypt.GenerateFromPassword(saltBytes, []byte(passphrase), BcryptSecurityParameter)
 	if err != nil {
-		panic(sdkerrors.Wrap(err, "error generating bcrypt key from passphrase"))
+		panic(errorsmod.Wrap(err, "error generating bcrypt key from passphrase"))
 	}
 
 	key = crypto.Sha256(key) // get 32 bytes
@@ -194,7 +195,7 @@ func UnarmorDecryptPrivKey(armorStr string, passphrase string) (privKey cryptoty
 func decryptPrivKey(saltBytes []byte, encBytes []byte, passphrase string) (privKey cryptotypes.PrivKey, err error) {
 	key, err := bcrypt.GenerateFromPassword(saltBytes, []byte(passphrase), BcryptSecurityParameter)
 	if err != nil {
-		return privKey, sdkerrors.Wrap(err, "error generating bcrypt key from passphrase")
+		return privKey, errorsmod.Wrap(err, "error generating bcrypt key from passphrase")
 	}
 
 	key = crypto.Sha256(key) // Get 32 bytes

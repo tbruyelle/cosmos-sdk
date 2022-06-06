@@ -26,7 +26,7 @@ func NewQuerier(k Keeper, legacyQuerierCdc *codec.LegacyAmino) sdk.Querier {
 			res, err = queryAllEvidence(ctx, req, k, legacyQuerierCdc)
 
 		default:
-			err = sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "unknown %s query endpoint: %s", types.ModuleName, path[0])
+			err = errorsmod.Wrapf(sdkerrors.ErrUnknownRequest, "unknown %s query endpoint: %s", types.ModuleName, path[0])
 		}
 
 		return res, err
@@ -38,17 +38,17 @@ func queryEvidence(ctx sdk.Context, req abci.RequestQuery, k Keeper, legacyQueri
 
 	err := legacyQuerierCdc.UnmarshalJSON(req.Data, &params)
 	if err != nil {
-		return nil, sdkerrors.Wrap(sdkerrors.ErrJSONUnmarshal, err.Error())
+		return nil, errorsmod.Wrap(sdkerrors.ErrJSONUnmarshal, err.Error())
 	}
 
 	evidence, ok := k.GetEvidence(ctx, params.EvidenceHash)
 	if !ok {
-		return nil, sdkerrors.Wrap(types.ErrNoEvidenceExists, params.EvidenceHash.String())
+		return nil, errorsmod.Wrap(types.ErrNoEvidenceExists, params.EvidenceHash.String())
 	}
 
 	res, err := codec.MarshalJSONIndent(legacyQuerierCdc, evidence)
 	if err != nil {
-		return nil, sdkerrors.Wrap(sdkerrors.ErrJSONMarshal, err.Error())
+		return nil, errorsmod.Wrap(sdkerrors.ErrJSONMarshal, err.Error())
 	}
 
 	return res, nil
@@ -59,7 +59,7 @@ func queryAllEvidence(ctx sdk.Context, req abci.RequestQuery, k Keeper, legacyQu
 
 	err := legacyQuerierCdc.UnmarshalJSON(req.Data, &params)
 	if err != nil {
-		return nil, sdkerrors.Wrap(sdkerrors.ErrJSONUnmarshal, err.Error())
+		return nil, errorsmod.Wrap(sdkerrors.ErrJSONUnmarshal, err.Error())
 	}
 
 	evidence := k.GetAllEvidence(ctx)
@@ -73,7 +73,7 @@ func queryAllEvidence(ctx sdk.Context, req abci.RequestQuery, k Keeper, legacyQu
 
 	res, err := codec.MarshalJSONIndent(legacyQuerierCdc, evidence)
 	if err != nil {
-		return nil, sdkerrors.Wrap(sdkerrors.ErrJSONMarshal, err.Error())
+		return nil, errorsmod.Wrap(sdkerrors.ErrJSONMarshal, err.Error())
 	}
 
 	return res, nil

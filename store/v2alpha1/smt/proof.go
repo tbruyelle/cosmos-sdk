@@ -6,8 +6,8 @@ import (
 	"encoding/gob"
 	"hash"
 
+	errorsmod "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/store/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/lazyledger/smt"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	tmmerkle "github.com/tendermint/tendermint/proto/tendermint/crypto"
@@ -46,14 +46,14 @@ func (p *ProofOp) Run(args [][]byte) ([][]byte, error) {
 	switch len(args) {
 	case 0: // non-membership proof
 		if !smt.VerifyProof(p.Proof, p.Root, p.Key, []byte{}, getHasher(p.Hasher)) {
-			return nil, sdkerrors.Wrapf(types.ErrInvalidProof, "proof did not verify absence of key: %s", p.Key)
+			return nil, errorsmod.Wrapf(types.ErrInvalidProof, "proof did not verify absence of key: %s", p.Key)
 		}
 	case 1: // membership proof
 		if !smt.VerifyProof(p.Proof, p.Root, p.Key, args[0], getHasher(p.Hasher)) {
-			return nil, sdkerrors.Wrapf(types.ErrInvalidProof, "proof did not verify existence of key %s with given value %x", p.Key, args[0])
+			return nil, errorsmod.Wrapf(types.ErrInvalidProof, "proof did not verify existence of key %s with given value %x", p.Key, args[0])
 		}
 	default:
-		return nil, sdkerrors.Wrapf(types.ErrInvalidProof, "args must be length 0 or 1, got: %d", len(args))
+		return nil, errorsmod.Wrapf(types.ErrInvalidProof, "args must be length 0 or 1, got: %d", len(args))
 	}
 	return [][]byte{p.Root}, nil
 }

@@ -10,6 +10,7 @@ import (
 
 	abci "github.com/tendermint/tendermint/abci/types"
 
+	errorsmod "cosmossdk.io/errors"
 	dbm "github.com/cosmos/cosmos-sdk/db"
 	prefixdb "github.com/cosmos/cosmos-sdk/db/prefix"
 	util "github.com/cosmos/cosmos-sdk/internal"
@@ -709,7 +710,7 @@ func (rs *Store) SetSnapshotInterval(snapshotInterval uint64) {
 // Returns error if it doesn't start with /
 func parsePath(path string) (storeName string, subpath string, err error) {
 	if !strings.HasPrefix(path, "/") {
-		return storeName, subpath, sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "invalid path: %s", path)
+		return storeName, subpath, errorsmod.Wrapf(sdkerrors.ErrUnknownRequest, "invalid path: %s", path)
 	}
 
 	paths := strings.SplitN(path[1:], "/", 2)
@@ -731,7 +732,7 @@ func parsePath(path string) (storeName string, subpath string, err error) {
 // explicitly set the height you want to see
 func (rs *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 	if len(req.Data) == 0 {
-		return sdkerrors.QueryResult(sdkerrors.Wrap(sdkerrors.ErrTxDecode, "query cannot be zero length"), false)
+		return sdkerrors.QueryResult(errorsmod.Wrap(sdkerrors.ErrTxDecode, "query cannot be zero length"), false)
 	}
 
 	// if height is 0, use the latest height
@@ -755,22 +756,22 @@ func (rs *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 
 	storeName, subpath, err := parsePath(req.Path)
 	if err != nil {
-		return sdkerrors.QueryResult(sdkerrors.Wrapf(err, "failed to parse path"), false)
+		return sdkerrors.QueryResult(errorsmod.Wrapf(err, "failed to parse path"), false)
 	}
 	view, err := rs.getView(height)
 	if err != nil {
 		if errors.Is(err, dbm.ErrVersionDoesNotExist) {
 			err = sdkerrors.ErrInvalidHeight
 		}
-		return sdkerrors.QueryResult(sdkerrors.Wrapf(err, "failed to access height"), false)
+		return sdkerrors.QueryResult(errorsmod.Wrapf(err, "failed to access height"), false)
 	}
 
 	if _, has := rs.schema[storeName]; !has {
-		return sdkerrors.QueryResult(sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "no such store: %s", storeName), false)
+		return sdkerrors.QueryResult(errorsmod.Wrapf(sdkerrors.ErrUnknownRequest, "no such store: %s", storeName), false)
 	}
 	substore, err := view.getSubstore(storeName)
 	if err != nil {
-		return sdkerrors.QueryResult(sdkerrors.Wrapf(err, "failed to access store: %s", storeName), false)
+		return sdkerrors.QueryResult(errorsmod.Wrapf(err, "failed to access store: %s", storeName), false)
 	}
 
 	switch subpath {
@@ -810,7 +811,7 @@ func (rs *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 		res.Value = bz
 
 	default:
-		return sdkerrors.QueryResult(sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "unexpected query path: %v", req.Path), false)
+		return sdkerrors.QueryResult(errorsmod.Wrapf(sdkerrors.ErrUnknownRequest, "unexpected query path: %v", req.Path), false)
 	}
 
 	return res
