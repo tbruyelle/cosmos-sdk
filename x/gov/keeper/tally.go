@@ -161,14 +161,11 @@ func (keeper Keeper) Tally(ctx context.Context, proposal v1.Proposal) (passes, b
 	return false, false, tallyResults, nil
 }
 
-// HasReachedQuorum returns whether or not a proposal has reached quorum
-// this is just a stripped down version of the Tally function above
-func (keeper Keeper) HasReachedQuorum(ctx context.Context, proposal v1.Proposal) (quorumPassed bool, err error) {
-	totalVotingPower := math.LegacyZeroDec()
+func (keeper Keeper) getBondedValidators(ctx context.Context) (map[string]v1.ValidatorGovInfo, error) {
 	currValidators := make(map[string]v1.ValidatorGovInfo)
 
 	// fetch all the bonded validators, insert them into currValidators
-	err = keeper.sk.IterateBondedValidatorsByPower(ctx, func(index int64, validator stakingtypes.ValidatorI) (stop bool) {
+	err := keeper.sk.IterateBondedValidatorsByPower(ctx, func(index int64, validator stakingtypes.ValidatorI) (stop bool) {
 		currValidators[validator.GetOperator().String()] = v1.NewValidatorGovInfo(
 			validator.GetOperator(),
 			validator.GetBondedTokens(),
@@ -179,6 +176,14 @@ func (keeper Keeper) HasReachedQuorum(ctx context.Context, proposal v1.Proposal)
 
 		return false
 	})
+	return currValidators, err
+}
+
+// HasReachedQuorum returns whether or not a proposal has reached quorum
+// this is just a stripped down version of the Tally function above
+func (keeper Keeper) HasReachedQuorum(ctx context.Context, proposal v1.Proposal) (quorumPassed bool, err error) {
+	totalVotingPower := math.LegacyZeroDec()
+	currValidators, err := keeper.getBondedValidators(ctx)
 	if err != nil {
 		return false, err
 	}
