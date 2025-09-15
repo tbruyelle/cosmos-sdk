@@ -3,6 +3,7 @@ package keys
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -38,9 +39,16 @@ const (
 	flagHDPath       = "hd-path"
 	flagPubKeyBase64 = "pubkey-base64"
 	flagMnemonicSrc  = "source"
+	flagEntropy      = "entropy"
+	flagMasked       = "masked"
 
 	// DefaultKeyPass contains the default key password for genesis transactions
 	DefaultKeyPass = "12345678"
+
+	// minEntropyChars is the minimum number of characters required for custom entropy
+	// Calculated as: ceil(180 / log2(10+24)) = 36
+	// This ensures at least 180 bits of entropy when using alphanumeric characters
+	minEntropyChars = 36
 )
 
 // AddKeyCommand defines a keys command to add a generated or recovered private key to keybase.
@@ -92,6 +100,8 @@ Example:
 	f.Uint32(flagIndex, 0, "Address index number for HD derivation (less than equal 2147483647)")
 	f.String(flags.FlagKeyType, string(hd.Secp256k1Type), "Key signing algorithm to generate keys for")
 	f.String(flagMnemonicSrc, "", "Import mnemonic from a file (only usable when recover or interactive is passed)")
+	f.Bool(flagEntropy, false, "Supply custom entropy for key generation instead of using computer's PRNG")
+	f.Bool(flagMasked, false, "Mask input characters (use with --entropy, --interactive or --recover)")
 
 	// support old flags name for backwards compatibility
 	f.SetNormalizeFunc(func(_ *pflag.FlagSet, name string) pflag.NormalizedName {
@@ -126,17 +136,19 @@ output
   - armor encrypted private key (saved to file)
 */
 func runAddCmd(ctx client.Context, cmd *cobra.Command, args []string, inBuf *bufio.Reader) error {
-	var err error
+	var (
+		name           = args[0]
+		interactive, _ = cmd.Flags().GetBool(flagInteractive)
+		noBackup, _    = cmd.Flags().GetBool(flagNoBackup)
+		entropy, _     = cmd.Flags().GetBool(flagEntropy)
+		masked, _      = cmd.Flags().GetBool(flagMasked)
+		showMnemonic   = !noBackup
+		kb             = ctx.Keyring
+		outputFormat   = ctx.OutputFormat
 
-	name := args[0]
-	interactive, _ := cmd.Flags().GetBool(flagInteractive)
-	noBackup, _ := cmd.Flags().GetBool(flagNoBackup)
-	showMnemonic := !noBackup
-	kb := ctx.Keyring
-	outputFormat := ctx.OutputFormat
-
-	keyringAlgos, _ := kb.SupportedAlgorithms()
-	algoStr, _ := cmd.Flags().GetString(flags.FlagKeyType)
+		keyringAlgos, _ = kb.SupportedAlgorithms()
+		algoStr, _      = cmd.Flags().GetString(flags.FlagKeyType)
+	)
 	algo, err := keyring.NewSigningAlgoFromString(algoStr, keyringAlgos)
 	if err != nil {
 		return err
@@ -146,21 +158,19 @@ func runAddCmd(ctx client.Context, cmd *cobra.Command, args []string, inBuf *buf
 		// use in memory keybase
 		kb = keyring.NewInMemory(ctx.Codec)
 	} else {
-		_, err = kb.Key(name)
-		if err == nil {
+		if _, err := kb.Key(name); err == nil {
 			// account exists, ask for user confirmation
-			response, err2 := input.GetConfirmation(fmt.Sprintf("override the existing name %s", name), inBuf, cmd.ErrOrStderr())
-			if err2 != nil {
-				return err2
+			response, err := input.GetConfirmation(fmt.Sprintf("override the existing name %s", name), inBuf, cmd.ErrOrStderr())
+			if err != nil {
+				return err
 			}
 
 			if !response {
 				return errors.New("aborted")
 			}
 
-			err2 = kb.Delete(name)
-			if err2 != nil {
-				return err2
+			if err := kb.Delete(name); err != nil {
+				return err
 			}
 		}
 
@@ -208,7 +218,7 @@ func runAddCmd(ctx client.Context, cmd *cobra.Command, args []string, inBuf *buf
 	}
 	if pubKey != "" {
 		var pk cryptotypes.PubKey
-		if err = ctx.Codec.UnmarshalInterfaceJSON([]byte(pubKey), &pk); err != nil {
+		if err := ctx.Codec.UnmarshalInterfaceJSON([]byte(pubKey), &pk); err != nil {
 			return err
 		}
 
@@ -240,7 +250,7 @@ func runAddCmd(ctx client.Context, cmd *cobra.Command, args []string, inBuf *buf
 			return fmt.Errorf("failed to JSON marshal typeURL and base64 key: %w", err)
 		}
 
-		if err = ctx.Codec.UnmarshalInterfaceJSON(jsonPub, &pk); err != nil {
+		if err := ctx.Codec.UnmarshalInterfaceJSON(jsonPub, &pk); err != nil {
 			return err
 		}
 
@@ -252,11 +262,13 @@ func runAddCmd(ctx client.Context, cmd *cobra.Command, args []string, inBuf *buf
 		return printCreate(cmd, k, false, "", outputFormat)
 	}
 
-	coinType, _ := cmd.Flags().GetUint32(flagCoinType)
-	account, _ := cmd.Flags().GetUint32(flagAccount)
-	index, _ := cmd.Flags().GetUint32(flagIndex)
-	hdPath, _ := cmd.Flags().GetString(flagHDPath)
-	useLedger, _ := cmd.Flags().GetBool(flags.FlagUseLedger)
+	var (
+		coinType, _  = cmd.Flags().GetUint32(flagCoinType)
+		account, _   = cmd.Flags().GetUint32(flagAccount)
+		index, _     = cmd.Flags().GetUint32(flagIndex)
+		hdPath, _    = cmd.Flags().GetString(flagHDPath)
+		useLedger, _ = cmd.Flags().GetBool(flags.FlagUseLedger)
+	)
 
 	if len(hdPath) == 0 {
 		hdPath = hd.CreateHDPath(coinType, account, index).String()
@@ -266,6 +278,9 @@ func runAddCmd(ctx client.Context, cmd *cobra.Command, args []string, inBuf *buf
 
 	// If we're using ledger, only thing we need is the path and the bech32 prefix.
 	if useLedger {
+		if entropy {
+			return errors.New("cannot supply custom entropy with ledger")
+		}
 		bech32PrefixAccAddr := sdk.GetConfig().GetBech32AccountAddrPrefix()
 		k, err := kb.SaveLedgerKey(name, hd.Secp256k1, bech32PrefixAccAddr, coinType, account, index)
 		if err != nil {
@@ -276,18 +291,27 @@ func runAddCmd(ctx client.Context, cmd *cobra.Command, args []string, inBuf *buf
 	}
 
 	// Get bip39 mnemonic
-	var mnemonic, bip39Passphrase string
+	var (
+		mnemonic, bip39Passphrase string
 
-	recoverFlag, _ := cmd.Flags().GetBool(flagRecover)
-	mnemonicSrc, _ := cmd.Flags().GetString(flagMnemonicSrc)
+		recoverFlag, _ = cmd.Flags().GetBool(flagRecover)
+		mnemonicSrc, _ = cmd.Flags().GetString(flagMnemonicSrc)
+	)
+	if entropy && recoverFlag {
+		return fmt.Errorf("flags %s and %s cannot be used simultaneously", flagEntropy, flagRecover)
+	}
+	if entropy && mnemonicSrc != "" {
+		return fmt.Errorf("flags %s and %s cannot be used simultaneously", flagEntropy, flagMnemonicSrc)
+	}
 	if recoverFlag {
 		if mnemonicSrc != "" {
 			mnemonic, err = readMnemonicFromFile(mnemonicSrc)
+			fmt.Println("MNEMONIC", mnemonic, err)
 			if err != nil {
 				return err
 			}
 		} else {
-			mnemonic, err = input.GetString("Enter your bip39 mnemonic", inBuf)
+			mnemonic, err = readInput("Enter your bip39 mnemonic", masked, inBuf)
 			if err != nil {
 				return err
 			}
@@ -302,8 +326,8 @@ func runAddCmd(ctx client.Context, cmd *cobra.Command, args []string, inBuf *buf
 			if err != nil {
 				return err
 			}
-		} else {
-			mnemonic, err = input.GetString("Enter your bip39 mnemonic, or hit enter to generate one.", inBuf)
+		} else if !entropy {
+			mnemonic, err = readInput("Enter your bip39 mnemonic, or hit enter to generate one.", masked, inBuf)
 			if err != nil {
 				return err
 			}
@@ -315,8 +339,14 @@ func runAddCmd(ctx client.Context, cmd *cobra.Command, args []string, inBuf *buf
 	}
 
 	if len(mnemonic) == 0 {
-		// read entropy seed straight from cmtcrypto.Rand and convert to mnemonic
-		entropySeed, err := bip39.NewEntropy(mnemonicEntropySize)
+		var entropySeed []byte
+		if entropy {
+			// read entropy from user input
+			entropySeed, err = readCustomEntropy(cmd, masked, inBuf)
+		} else {
+			// read entropy seed straight from cmtcrypto.Rand and convert to mnemonic
+			entropySeed, err = bip39.NewEntropy(mnemonicEntropySize)
+		}
 		if err != nil {
 			return err
 		}
@@ -329,16 +359,16 @@ func runAddCmd(ctx client.Context, cmd *cobra.Command, args []string, inBuf *buf
 
 	// override bip39 passphrase
 	if interactive {
-		bip39Passphrase, err = input.GetString(
+		bip39Passphrase, err = readInput(
 			"Enter your bip39 passphrase. This is combined with the mnemonic to derive the seed. "+
-				"Most users should just hit enter to use the default, \"\"", inBuf)
+				"Most users should just hit enter to use the default, \"\"", masked, inBuf)
 		if err != nil {
 			return err
 		}
 
 		// if they use one, make them re-enter it
 		if len(bip39Passphrase) != 0 {
-			p2, err := input.GetString("Repeat the passphrase:", inBuf)
+			p2, err := readInput("Repeat the passphrase:", masked, inBuf)
 			if err != nil {
 				return err
 			}
@@ -414,4 +444,47 @@ func readMnemonicFromFile(filePath string) (string, error) {
 		return "", err
 	}
 	return string(bz), nil
+}
+
+func readCustomEntropy(cmd *cobra.Command, masked bool, inBuf *bufio.Reader) ([]byte, error) {
+	// Prompt advice
+	fmt.Println()
+	fmt.Println(`=== MANUAL ENTROPY GENERATION ===
+
+Generate true random entropy using ONE of these methods:
+• Dice: Roll a D20 (20-sided die) exactly 42 times
+• Cards: Shuffle a standard 52-card deck 20 times, then record the full deck order`)
+	fmt.Println()
+	// Get the entropy input
+	inputEntropy, err := readInput("Enter your entropy:", masked, inBuf)
+	if err != nil {
+		return nil, err
+	}
+	if len(inputEntropy) < minEntropyChars {
+		return nil, fmt.Errorf("entropy too short (%d characters). Please provide at least %d characters", len(inputEntropy), minEntropyChars)
+	}
+
+	// Hash the input entropy to create deterministic seed
+	hashedEntropy := sha256.Sum256([]byte(inputEntropy))
+
+	// Show what we're using as entropy (first 16 bytes as hex)
+	fmt.Printf("\nDerived entropy (SHA-256): %x...\n", hashedEntropy[:16])
+	fmt.Printf("Input length: %d characters\n", len(inputEntropy))
+
+	// Confirm before proceeding
+	conf, err := input.GetConfirmation("Generate mnemonic from this entropy?", inBuf, cmd.ErrOrStderr())
+	if err != nil {
+		return nil, err
+	}
+	if !conf {
+		return nil, fmt.Errorf("mnemonic generation cancelled")
+	}
+	return hashedEntropy[:], nil
+}
+
+func readInput(prompt string, masked bool, inBuf *bufio.Reader) (string, error) {
+	if masked {
+		return input.GetPassword(prompt, inBuf)
+	}
+	return input.GetString(prompt, inBuf)
 }
