@@ -22,18 +22,6 @@ func (m MsgUpdateParams) ValidateBasic() error {
 	return m.Params.ValidateBasic()
 }
 
-// GetSignBytes returns the message bytes to sign over.
-func (m MsgUpdateParams) GetSignBytes() []byte {
-	bz := ModuleCdc.MustMarshalJSON(&m)
-	return sdk.MustSortJSON(bz)
-}
-
-// GetSigners returns the expected signers for a MsgUpdateParams.
-func (m MsgUpdateParams) GetSigners() []sdk.AccAddress {
-	authority, _ := sdk.AccAddressFromBech32(m.Authority)
-	return []sdk.AccAddress{authority}
-}
-
 // ValidateBasic implements the sdk.Msg interface.
 func (m MsgCreateAccount) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(m.Sender); err != nil {
@@ -62,18 +50,6 @@ func (m MsgCreateAccount) ValidateBasic() error {
 		}
 	}
 	return nil
-}
-
-// GetSignBytes returns the message bytes to sign over.
-func (m MsgCreateAccount) GetSignBytes() []byte {
-	bz := ModuleCdc.MustMarshalJSON(&m)
-	return sdk.MustSortJSON(bz)
-}
-
-// GetSigners returns the expected signers for a MsgCreateAccount.
-func (m MsgCreateAccount) GetSigners() []sdk.AccAddress {
-	authority, _ := sdk.AccAddressFromBech32(m.Sender)
-	return []sdk.AccAddress{authority}
 }
 
 // GetMsgs unpacks m.Messages Any's into sdk.Msg's
@@ -118,23 +94,14 @@ func (m MsgCreateProposal) ValidateBasic() error {
 		return sdkerrors.ErrInvalidRequest.Wrapf("unable to read proposal messages: %v", err) //nolint:staticcheck
 	}
 	for i, msg := range msgs {
-		if err := msg.ValidateBasic(); err != nil {
-			return sdkerrors.ErrInvalidRequest.Wrapf("validation fail for proposal message %d: %v", i, err) //nolint:staticcheck
+		// perform a basic validation of the message
+		if m, ok := msg.(sdk.HasValidateBasic); ok {
+			if err := m.ValidateBasic(); err != nil {
+				return sdkerrors.ErrInvalidRequest.Wrapf("validation fail for proposal message %d: %v", i, err) //nolint:staticcheck
+			}
 		}
 	}
 	return nil
-}
-
-// GetSignBytes returns the message bytes to sign over.
-func (m MsgCreateProposal) GetSignBytes() []byte {
-	bz := ModuleCdc.MustMarshalJSON(&m)
-	return sdk.MustSortJSON(bz)
-}
-
-// GetSigners returns the expected signers for a MsgCreateProposal.
-func (m MsgCreateProposal) GetSigners() []sdk.AccAddress {
-	authority, _ := sdk.AccAddressFromBech32(m.Sender)
-	return []sdk.AccAddress{authority}
 }
 
 // UnpackInterfaces implements UnpackInterfacesMessage.UnpackInterfaces
@@ -153,34 +120,10 @@ func (m MsgVote) ValidateBasic() error {
 	return nil
 }
 
-// GetSignBytes returns the message bytes to sign over.
-func (m MsgVote) GetSignBytes() []byte {
-	bz := ModuleCdc.MustMarshalJSON(&m)
-	return sdk.MustSortJSON(bz)
-}
-
-// GetSigners returns the expected signers for a MsgVote.
-func (m MsgVote) GetSigners() []sdk.AccAddress {
-	authority, _ := sdk.AccAddressFromBech32(m.Voter)
-	return []sdk.AccAddress{authority}
-}
-
 // ValidateBasic implements the sdk.Msg interface.
 func (m MsgExecuteProposal) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(m.Executor); err != nil {
 		return sdkerrors.ErrInvalidAddress.Wrapf("invalid executor address: %s", err)
 	}
 	return nil
-}
-
-// GetSignBytes returns the message bytes to sign over.
-func (m MsgExecuteProposal) GetSignBytes() []byte {
-	bz := ModuleCdc.MustMarshalJSON(&m)
-	return sdk.MustSortJSON(bz)
-}
-
-// GetSigners returns the expected signers for a MsgExecuteProposal.
-func (m MsgExecuteProposal) GetSigners() []sdk.AccAddress {
-	authority, _ := sdk.AccAddressFromBech32(m.Executor)
-	return []sdk.AccAddress{authority}
 }

@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -97,11 +98,14 @@ func (k msgServer) CreateProposal(goCtx context.Context, msg *types.MsgCreatePro
 	}
 	for _, msg := range msgs {
 		// assert that the multisig account is the only signer of the message
-		signers := msg.GetSigners()
+		signers, _, err := k.cdc.GetMsgV1Signers(msg)
+		if err != nil {
+			return nil, err
+		}
 		if len(signers) != 1 {
 			return nil, types.ErrInvalidSigner
 		}
-		if !signers[0].Equals(accountAddr) {
+		if !bytes.Equal(signers[0], accountAddr) {
 			return nil, types.ErrInvalidSigner
 		}
 		// use the msg service router to see that there is a valid route for that

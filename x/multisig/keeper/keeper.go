@@ -11,9 +11,8 @@ import (
 	"google.golang.org/grpc/status"
 
 	"cosmossdk.io/collections"
-	collcodec "cosmossdk.io/collections/codec"
-	storetypes "cosmossdk.io/store/types"
-	"github.com/cometbft/cometbft/libs/log"
+	corestoretypes "cosmossdk.io/core/store"
+	"cosmossdk.io/log"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -22,9 +21,10 @@ import (
 
 // Keeper defines the keeper of the multisig module.
 type Keeper struct {
-	cdc      codec.BinaryCodec
-	storeKey storetypes.StoreKey
-	router   types.Router
+	cdc codec.Codec
+	// The (unexposed) keys used to access the stores from the Context.
+	storeService corestoretypes.KVStoreService
+	router       types.Router
 
 	authority string
 
@@ -41,36 +41,34 @@ type Keeper struct {
 
 // NewKeeper creates a new keeper instance.
 func NewKeeper(
-	cdc codec.BinaryCodec,
-	storeKey storetypes.StoreKey,
+	cdc codec.Codec,
+	storeService corestoretypes.KVStoreService,
 	router types.Router,
 	authority string,
 ) *Keeper {
-	sb := collections.NewSchemaBuilderFromAccessor(func(ctx context.Context) storetypes.KVStore {
-		return sdk.UnwrapSDKContext(ctx).KVStore(storeKey)
-	})
+	sb := collections.NewSchemaBuilder(storeService)
 	k := &Keeper{
-		cdc:      cdc,
-		storeKey: storeKey,
-		router:   router,
+		cdc:          cdc,
+		storeService: storeService,
+		router:       router,
 		Params: collections.NewItem(
-			sb, types.KeyParams, "params", collcodec.CollValue[types.Params](cdc),
+			sb, types.KeyParams, "params", codec.CollValue[types.Params](cdc),
 		),
 		Accounts: collections.NewMap(
 			sb, types.KeyAccounts, "accounts", collections.BytesKey,
-			collcodec.CollValue[types.Account](cdc),
+			codec.CollValue[types.Account](cdc),
 		),
 		AccountNumber: collections.NewSequence(sb, types.KeyAccountNumber, "accounts_number"),
 		Proposals: collections.NewMap(
 			sb, types.KeyProposals, "proposals",
 			collections.PairKeyCodec(collections.BytesKey, collections.Uint64Key),
-			collcodec.CollValue[types.Proposal](cdc),
+			codec.CollValue[types.Proposal](cdc),
 		),
 		ProposalNumber: collections.NewSequence(sb, types.KeyProposalNumber, "proposal_number"),
 		Votes: collections.NewMap(
 			sb, types.KeyVotes, "votes",
 			collections.TripleKeyCodec(collections.BytesKey, collections.Uint64Key, collections.BytesKey),
-			collcodec.CollValue[types.Vote](cdc),
+			codec.CollValue[types.Vote](cdc),
 		),
 		authority: authority,
 	}
@@ -84,7 +82,8 @@ func NewKeeper(
 
 // Logger returns the logger for this keeper.
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {
-	return ctx.Logger().With("module", fmt.Sprintf("x/%s", types.ModuleName))
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	return sdkCtx.Logger().With("module", "x/"+types.ModuleName)
 }
 
 // GetAccount returns the multisig account for a given address.
