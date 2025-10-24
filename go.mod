@@ -39,6 +39,7 @@ require (
 	github.com/hdevalence/ed25519consensus v0.1.0
 	github.com/hexops/gotextdiff v1.0.3
 	github.com/huandu/skiplist v1.2.0
+	github.com/iancoleman/strcase v0.3.0
 	github.com/improbable-eng/grpc-web v0.15.0
 	github.com/jhump/protoreflect v1.15.3
 	github.com/magiconair/properties v1.8.7
@@ -114,7 +115,6 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hashicorp/yamux v0.1.1 // indirect
-	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
