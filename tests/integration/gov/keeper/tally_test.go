@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"fmt"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -9,6 +10,7 @@ import (
 
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
@@ -501,4 +503,54 @@ func TestTallyValidatorMultipleDelegations(t *testing.T) {
 	expectedTallyResult := v1.NewTallyResult(expectedYes, expectedAbstain, expectedNo)
 
 	assert.Assert(t, tallyResults.Equals(expectedTallyResult))
+}
+
+func TestTallyGovernors(t *testing.T) {
+	t.Parallel()
+
+	f := initFixture(t)
+	msgSrvr := keeper.NewMsgServerImpl(f.govKeeper)
+
+	ctx := f.ctx
+
+	addrs, vals := createValidators(t, f, []int64{5, 6, 7})
+
+	// Create a governor
+	addr := simtestutil.AddTestAddrs(f.bankKeeper, f.stakingKeeper, f.ctx, 1, math.NewInt(10_000_000))[0]
+
+	delTokens := f.stakingKeeper.TokensFromConsensusPower(ctx, 1)
+	val3, found := f.stakingKeeper.GetValidator(ctx, vals[2])
+	assert.Assert(t, found)
+
+	_, err := f.stakingKeeper.Delegate(ctx, addr, delTokens, stakingtypes.Unbonded, val3, true)
+	assert.NilError(t, err)
+
+	// govAddr := types.GovernorAddress(addr.Bytes())
+	res, err := msgSrvr.CreateGovernor(f.ctx, v1.NewMsgCreateGovernor(
+		addr, v1.GovernorDescription{},
+	))
+	assert.NilError(t, err)
+	fmt.Println("RES", res)
+
+	f.stakingKeeper.EndBlocker(ctx)
+
+	tp := TestProposal
+	proposal, err := f.govKeeper.SubmitProposal(ctx, tp, "", "test", "description", addrs[0])
+	assert.NilError(t, err)
+	proposalID := proposal.Id
+	proposal.Status = v1.StatusVotingPeriod
+	f.govKeeper.SetProposal(ctx, proposal)
+
+	assert.NilError(t, f.govKeeper.AddVote(ctx, proposalID, addrs[0], v1.NewNonSplitVoteOption(v1.OptionNo), ""))
+	assert.NilError(t, f.govKeeper.AddVote(ctx, proposalID, addrs[1], v1.NewNonSplitVoteOption(v1.OptionNo), ""))
+	assert.NilError(t, f.govKeeper.AddVote(ctx, proposalID, addrs[2], v1.NewNonSplitVoteOption(v1.OptionYes), ""))
+
+	proposal, err = f.govKeeper.Proposals.Get(ctx, proposalID)
+	assert.NilError(t, err)
+	passes, burnDeposits, _, tallyResults, err := f.govKeeper.Tally(ctx, proposal)
+	assert.NilError(t, err)
+
+	assert.Assert(t, passes) // vote not inherited, proposal not passing
+	assert.Assert(t, burnDeposits == false)
+	assert.Assert(t, tallyResults.Equals(v1.EmptyTallyResult()) == false)
 }
